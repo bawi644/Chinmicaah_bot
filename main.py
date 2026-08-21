@@ -1,7 +1,7 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import os
 import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -96,4 +96,3 @@ def main():
 
 if __name__ == "__main__":
   main()
-    

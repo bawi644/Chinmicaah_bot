@@ -1,24 +1,22 @@
 import os
 import logging
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import yt_dlp
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-logging.basicConfig(level=logging.INFO)
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is live!")
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("မင်္ဂလာပါ။ Facebook သို့မဟုတ် TikTok Video Link ပို့ပေးပါ။")
+def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    server.serve_forever()
 
-def download_video(update: Update, context: CallbackContext):
-    url = update.message.text
-    if "facebook.com" in url or "fb.watch" in url or "tiktok.com" in url:
-        msg = update.message.reply_text("ဗီဒီယို ဒေါင်းလုဒ်ဆွဲနေပါသည်၊ ခဏစောင့်ပါ။...")
+threading.Thread(target=run_web_server, daemon=True).start()
+
         
-        ydl_opts = {
-            'outtmpl': 'video.mp4',
-            'format': 'best',
-            'max_filesize': 50000000,
-        }
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

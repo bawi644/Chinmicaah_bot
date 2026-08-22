@@ -4,29 +4,21 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
     CallbackContext,
     CommandHandler,
+    Filters,
     MessageHandler,
-    filters,
+    Updater,
 )
 import yt_dlp
 
+# Logging သတ်မှတ်ခြင်း
 logging.basicConfig(level=logging.INFO)
 
 
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+# UptimeRobot Ping ခေါ်ဆိုမှုကို တုံ့ပြန်ရန် Web Server
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
-  def do_GET(self):
-    self.send_response(200)
-    self.end_headers()
-    self.wfile.write(b"Bot is live!")
-
-  def do_HEAD(self):
-    self.send_response(200)
-    self.end_headers()
-      
   def do_GET(self):
     self.send_response(200)
     self.end_headers()
@@ -43,16 +35,18 @@ def run_web_server():
   server.serve_forever()
 
 
+# Web Server ကို Background တွင် စတင်မောင်းနှင်ခြင်း
 threading.Thread(target=run_web_server, daemon=True).start()
 
 
-async def start(update: Update, context: CallbackContext):
-  await update.message.reply_text(
+# Telegram Bot Command များနှင့် လုပ်ဆောင်ချက်များ
+def start(update: Update, context: CallbackContext):
+  update.message.reply_text(
       "မင်္ဂလာပါ။ Facebook သို့မဟုတ် TikTok ဗီဒီယို Link ကို ပို့ပေးပါ။"
   )
 
 
-async def download_video(update: Update, context: CallbackContext):
+def download_video(update: Update, context: CallbackContext):
   url = update.message.text
   if (
       "facebook.com" in url
@@ -60,7 +54,7 @@ async def download_video(update: Update, context: CallbackContext):
       or "tiktok.com" in url
       or "vt.tiktok.com" in url
   ):
-    msg = await update.message.reply_text(
+    msg = update.message.reply_text(
         "ဗီဒီယိုကို ဒေါင်းလုဒ်ရယူနေပါသည်... ခဏစောင့်ပေးပါ။"
     )
 
@@ -75,18 +69,18 @@ async def download_video(update: Update, context: CallbackContext):
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
 
-      await msg.edit_text("ဗီဒီယိုကို Telegram သို့ ပို့ပေးနေပါသည်...")
+      msg.edit_text("ဗီဒီယိုကို Telegram သို့ ပို့ပေးနေပါသည်...")
 
       with open(filename, "rb") as video:
-        await update.message.reply_video(video)
+        update.message.reply_video(video)
 
-      await msg.delete()
+      msg.delete()
       if os.path.exists(filename):
         os.remove(filename)
 
     except Exception as e:
       logging.error(e)
-      await msg.edit_text("ဒေါင်းလုဒ်ဆွဲရာတွင် အမှားအယွင်း ရှိနေပါသည်။")
+      msg.edit_text("ဒေါင်းလုဒ်ဆွဲရာတွင် အမှားအယွင်း ရှိနေပါသည်။")
 
 
 def main():
@@ -95,13 +89,16 @@ def main():
     print("BOT_TOKEN မရှိပါ")
     return
 
-  app = ApplicationBuilder().token(token).build()
-  app.add_handler(CommandHandler("start", start))
-  app.add_handler(
-      MessageHandler(filters.TEXT & ~filters.COMMAND, download_video)
+  updater = Updater(token, use_context=True)
+  dp = updater.dispatcher
+
+  dp.add_handler(CommandHandler("start", start))
+  dp.add_handler(
+      MessageHandler(Filters.text & ~Filters.command, download_video)
   )
 
-  app.run_polling()
+  updater.start_polling()
+  updater.idle()
 
 
 if __name__ == "__main__":
